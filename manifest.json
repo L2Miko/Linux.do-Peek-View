@@ -1,0 +1,83 @@
+{
+  "manifest_version": 3,
+  "name": "Linux.do 悬浮预览",
+  "version": "1.0.0",
+  "description": "在 Linux.do 内以浮层预览帖子，支持已读定位、自动续载、点赞收藏与快速回复等",
+  "host_permissions": [
+    "https://linux.do/t/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://linux.do/*"
+      ],
+      "js": [
+        "src/runtime/core/namespace.js",
+        "src/runtime/core/constants.js",
+        "src/runtime/reaction/reaction-assets.js",
+        "src/runtime/reaction/reaction-utils.js",
+        "src/runtime/reaction/reaction-icon-registry.js",
+        "src/runtime/reaction/reaction-icon-resolver.js",
+        "src/runtime/reaction/reaction-options-utils.js",
+        "src/runtime/core/state.js",
+        "src/runtime/topic/topic-path.js",
+        "src/runtime/topic/topic-stream.js",
+        "src/runtime/topic/topic-display-utils.js",
+        "src/runtime/reply/reply-emoji-utils.js",
+        "src/runtime/reply/reply-panel-utils.js",
+        "src/runtime/reply/reply-ui-utils.js",
+        "src/runtime/reply/reply-compose-utils.js",
+        "src/runtime/reply/reply-paste-file-utils.js",
+        "src/runtime/reply/reply-upload-text-utils.js",
+        "src/runtime/reply/reply-upload-queue-utils.js",
+        "src/runtime/reply/reply-upload-state-utils.js",
+        "src/runtime/reply/reply-submit-utils.js",
+        "src/runtime/network/request-control-utils.js",
+        "src/runtime/settings/settings-bootstrap-utils.js",
+        "src/runtime/settings/settings-panel-utils.js",
+        "src/runtime/settings/settings-ui-utils.js",
+        "src/runtime/common/location-watch-utils.js",
+        "src/runtime/drawer/drawer-status-utils.js",
+        "src/runtime/drawer/drawer-header-utils.js",
+        "src/runtime/drawer/drawer-dom-utils.js",
+        "src/runtime/read/read-tracking-utils.js",
+        "src/runtime/read/read-report-utils.js",
+        "src/runtime/common/ui-event-utils.js",
+        "src/runtime/topic/topic-link-utils.js",
+        "src/runtime/topic/topic-entry-cache-utils.js",
+        "src/runtime/post/post-payload.js",
+        "src/runtime/network/network-response.js",
+        "src/runtime/post/scroll-target-utils.js",
+        "src/runtime/post/post-jump-utils.js",
+        "src/runtime/topic/topic-target-utils.js",
+        "src/runtime/post/post-local-mutations.js",
+        "src/runtime/post/post-state-utils.js",
+        "src/runtime/post/post-lookup.js",
+        "src/runtime/post/post-interaction-utils.js",
+        "src/runtime/topic/topic-url-utils.js",
+        "src/runtime/topic/topic-fetch-utils.js",
+        "src/runtime/drawer/drawer-topic-flow-utils.js",
+        "src/runtime/topic/topic-view-mode-utils.js",
+        "src/runtime/topic/topic-meta-utils.js",
+        "src/runtime/topic/topic-view-builder-utils.js",
+        "src/runtime/topic/topic-load-more-utils.js",
+        "src/runtime/settings/settings-utils.js",
+        "src/runtime/reply/reply-view-utils.js",
+        "src/runtime/reply/composer-markdown-utils.js",
+        "src/runtime/common/security-utils.js",
+        "src/runtime/drawer/drawer-utils.js",
+        "src/runtime/image/image-preview-bridge-utils.js",
+        "src/runtime/image/image-preview-utils.js",
+        "src/runtime/image/image-preview-core.js",
+        "src/runtime/image/image-preview-events.js",
+        "src/runtime/common/text-utils.js",
+        "src/runtime/topic/topic-render-utils.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
