@@ -730,39 +730,34 @@
   const openImagePreview = (image) => getImagePreviewBridgeApi().openImagePreview(image);
   const closeImagePreview = () => getImagePreviewBridgeApi().closeImagePreview();
   const handlePreviewImageLoad = () => getImagePreviewBridgeApi().handlePreviewImageLoad();
-  const triggerBottomBounce = () => {
-    if (!(state.content instanceof HTMLElement)) {
-      return;
-    }
-
-    const topicView = state.content.querySelector(".ld-topic-view");
-    if (!(topicView instanceof HTMLElement)) {
+  const triggerBottomEdgeGlow = () => {
+    if (!(state.root instanceof HTMLElement)) {
       return;
     }
 
     const now = Date.now();
-    if (state.bottomBounceLockedUntil > now) {
+    if (state.bottomEdgeGlowLockedUntil > now) {
       return;
     }
-    state.bottomBounceArmed = false;
-    state.bottomBounceLockedUntil = now + 360;
+    state.bottomEdgeGlowArmed = false;
+    state.bottomEdgeGlowLockedUntil = now + 960;
 
-    if (state.bottomBounceTimer) {
-      clearTimeout(state.bottomBounceTimer);
-      state.bottomBounceTimer = null;
+    if (state.bottomEdgeGlowTimer) {
+      clearTimeout(state.bottomEdgeGlowTimer);
+      state.bottomEdgeGlowTimer = null;
     }
 
-    topicView.classList.remove("ld-topic-view-bottom-bounce");
-    void topicView.offsetWidth;
-    topicView.classList.add("ld-topic-view-bottom-bounce");
-    state.bottomBounceTimer = setTimeout(() => {
-      topicView.classList.remove("ld-topic-view-bottom-bounce");
-      if (state.bottomBounceTimer) {
-        state.bottomBounceTimer = null;
+    state.root.classList.remove("ld-drawer-bottom-edge-glow-active");
+    void state.root.offsetWidth;
+    state.root.classList.add("ld-drawer-bottom-edge-glow-active");
+    state.bottomEdgeGlowTimer = setTimeout(() => {
+      state.root?.classList.remove("ld-drawer-bottom-edge-glow-active");
+      if (state.bottomEdgeGlowTimer) {
+        state.bottomEdgeGlowTimer = null;
       }
-    }, 320);
+    }, 5100);
   };
-  const maybeTriggerBottomBounce = (event) => {
+  const maybeTriggerBottomEdgeGlow = (event) => {
     if (
       !(state.drawerBody instanceof HTMLElement)
       || !state.currentTopic
@@ -778,12 +773,12 @@
     }
 
     const remainingDistance = state.drawerBody.scrollHeight - state.drawerBody.scrollTop - state.drawerBody.clientHeight;
-    if (remainingDistance > 1 || state.bottomBounceArmed !== true) {
+    if (remainingDistance > 1 || state.bottomEdgeGlowArmed !== true) {
       return;
     }
 
     event.preventDefault();
-    triggerBottomBounce();
+    triggerBottomEdgeGlow();
   };
   const handleDrawerRootWheel = (event) => {
     if (!state.imagePreview?.hidden) {
@@ -791,7 +786,7 @@
       return;
     }
 
-    maybeTriggerBottomBounce(event);
+    maybeTriggerBottomEdgeGlow(event);
   };
   const resetImagePreviewScale = () => getImagePreviewBridgeApi().resetImagePreviewScale();
   const applyImagePreviewScale = () => getImagePreviewBridgeApi().applyImagePreviewScale();
@@ -886,15 +881,13 @@
   };
   const openDrawer = (topicUrl, fallbackTitle, activeLink) => getDrawerTopicFlowApi().openDrawer(topicUrl, fallbackTitle, activeLink);
   const closeDrawer = () => {
-    if (state.bottomBounceTimer) {
-      clearTimeout(state.bottomBounceTimer);
-      state.bottomBounceTimer = null;
+    if (state.bottomEdgeGlowTimer) {
+      clearTimeout(state.bottomEdgeGlowTimer);
+      state.bottomEdgeGlowTimer = null;
     }
-    state.bottomBounceArmed = true;
-    state.bottomBounceLockedUntil = 0;
-    if (state.content instanceof HTMLElement) {
-      state.content.querySelector(".ld-topic-view")?.classList.remove("ld-topic-view-bottom-bounce");
-    }
+    state.bottomEdgeGlowArmed = true;
+    state.bottomEdgeGlowLockedUntil = 0;
+    state.root?.classList.remove("ld-drawer-bottom-edge-glow-active");
     getDrawerTopicFlowApi().closeDrawer();
   };
   const loadTopic = (topicUrl, fallbackTitle, topicIdHint = null, options = {}) => getDrawerTopicFlowApi().loadTopic(topicUrl, fallbackTitle, topicIdHint, options);
@@ -977,10 +970,10 @@
     if (state.currentTopic && state.drawerBody instanceof HTMLElement) {
       const remainingDistance = state.drawerBody.scrollHeight - state.drawerBody.scrollTop - state.drawerBody.clientHeight;
       if (remainingDistance > 1 || runtime.topicStream.hasMoreTopicPostsBelowLoadedTail(state.currentTopic)) {
-        state.bottomBounceArmed = true;
+        state.bottomEdgeGlowArmed = true;
       }
     } else {
-      state.bottomBounceArmed = true;
+      state.bottomEdgeGlowArmed = true;
     }
 
     runtime.uiEventUtils.handleDrawerBodyScroll({

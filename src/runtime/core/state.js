@@ -98,9 +98,9 @@
       invalidReactionIconUrls: new Set(),
       cachedReactionOptions: typeof loadCachedReactionOptions === "function" ? loadCachedReactionOptions() : null,
       isHeaderCompact: false,
-      bottomBounceArmed: true,
-      bottomBounceTimer: null,
-      bottomBounceLockedUntil: 0,
+      bottomEdgeGlowArmed: true,
+      bottomEdgeGlowTimer: null,
+      bottomEdgeGlowLockedUntil: 0,
       jumpBackButton: null,
       jumpBackButtonTimer: null
     };

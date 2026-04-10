@@ -54,6 +54,35 @@ body.ld-drawer-page-open #ld-drawer-root {
   overflow: hidden;
 }
 
+#ld-drawer-root .ld-drawer-shell::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  bottom: 0;
+  height: 2px;
+  z-index: 4;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, #fca5a5 82%, #fff) 22%,
+    color-mix(in srgb, #ef4444 94%, #fff) 50%,
+    color-mix(in srgb, #fca5a5 82%, #fff) 78%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 10px color-mix(in srgb, #fca5a5 62%, transparent),
+    0 0 20px color-mix(in srgb, #ef4444 42%, transparent),
+    0 0 34px color-mix(in srgb, #dc2626 28%, transparent);
+}
+
+body.ld-drawer-page-open #ld-drawer-root.ld-drawer-bottom-edge-glow-active .ld-drawer-shell::before {
+  animation: ld-post-read-line-glow 5s ease-out forwards;
+}
+
 body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   transform: translateY(0) scale(1);
 }
@@ -976,10 +1005,6 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   min-width: 0;
 }
 
-#ld-drawer-root .ld-topic-view.ld-topic-view-bottom-bounce {
-  animation: ld-topic-view-bottom-bounce 240ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 #ld-drawer-root .ld-topic-post-list {
   min-width: 0;
 }
@@ -1095,18 +1120,6 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
     opacity: 0;
     transform: scaleX(1);
     filter: saturate(1);
-  }
-}
-
-@keyframes ld-topic-view-bottom-bounce {
-  0% {
-    transform: translateY(0);
-  }
-  58% {
-    transform: translateY(8px);
-  }
-  100% {
-    transform: translateY(0);
   }
 }
 
@@ -2013,7 +2026,8 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   #ld-drawer-root .ld-post-jump-back-button,
   #ld-drawer-root .ld-drawer-jump-first-post,
   #ld-drawer-root .ld-drawer-reply-fab::before,
-  #ld-drawer-root .ld-post-card.ld-post-card-op::before {
+  #ld-drawer-root .ld-post-card.ld-post-card-op::before,
+  #ld-drawer-root .ld-drawer-shell::before {
     animation: none;
     transition: none;
   }
