@@ -47,6 +47,8 @@
       settingsCard: null,
       settingsCloseButton: null,
       settingsToggle: null,
+      settingsPopoverLockedLeft: null,
+      settingsPopoverLockedTop: null,
       activeLink: null,
       currentUrl: "",
       currentEntryElement: null,

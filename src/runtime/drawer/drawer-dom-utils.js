@@ -26,12 +26,23 @@
             <div class="ld-drawer-meta"></div>
             <div class="ld-drawer-actions">
               <div class="ld-drawer-settings" id="ld-drawer-settings" data-open="false">
-                <button class="ld-drawer-settings-toggle" type="button" aria-expanded="false" aria-controls="ld-drawer-settings-menu" aria-haspopup="menu">选项</button>
-                <div class="ld-drawer-settings-card" id="ld-drawer-settings-menu" role="menu" aria-label="预览宽度选项">
-                  <button class="ld-setting-option" type="button" role="menuitemradio" data-drawer-width-option="custom">默</button>
-                  <button class="ld-setting-option" type="button" role="menuitemradio" data-drawer-width-option="narrow">窄</button>
-                  <button class="ld-setting-option" type="button" role="menuitemradio" data-drawer-width-option="medium">中</button>
-                  <button class="ld-setting-option" type="button" role="menuitemradio" data-drawer-width-option="wide">宽</button>
+                <button class="ld-drawer-settings-toggle" type="button" aria-expanded="false" aria-controls="ld-drawer-settings-menu" aria-haspopup="dialog">宽度</button>
+                <div class="ld-drawer-settings-card" id="ld-drawer-settings-menu" role="group" aria-label="预览宽度调节">
+                  <label class="ld-drawer-width-control" for="ld-drawer-width-slider">
+                    <span class="ld-drawer-width-slider-shell">
+                      <input
+                        class="ld-drawer-width-slider"
+                        id="ld-drawer-width-slider"
+                        type="range"
+                        min="760"
+                        max="1400"
+                        step="1"
+                        value="1080"
+                        data-setting="drawerWidthCustom"
+                        aria-label="调节预览宽度"
+                      />
+                    </span>
+                  </label>
                 </div>
               </div>
               <a class="ld-drawer-link" href="https://linux.do/latest" target="_blank" rel="noopener noreferrer">新标签打开</a>
@@ -151,7 +162,7 @@
     root.addEventListener("pointerup", options.handleImagePreviewPointerEnd);
     root.addEventListener("pointercancel", options.handleImagePreviewPointerEnd);
     state.drawerBody.addEventListener("scroll", options.handleDrawerBodyScroll, { passive: true });
-    state.settingsPanel.addEventListener("click", options.handleSettingsOptionClick);
+    state.settingsPanel.addEventListener("input", options.handleSettingsChange);
     options.syncSettingsUI();
     options.applyDrawerWidth();
     options.syncReplyUI();

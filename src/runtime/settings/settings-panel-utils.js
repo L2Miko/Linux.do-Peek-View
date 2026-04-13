@@ -14,11 +14,16 @@
     const focusOnOpen = options.focusOnOpen === true;
     if (isOpen) {
       if (typeof updateSettingsPopoverPosition === "function") {
-        updateSettingsPopoverPosition();
+        updateSettingsPopoverPosition({ lockPosition: true });
       }
       if (focusOnOpen && typeof queueMicrotaskFn === "function") {
-        queueMicrotaskFn(() => state.settingsCard?.querySelector(".ld-setting-option")?.focus());
+        queueMicrotaskFn(() => state.settingsCard?.querySelector("[data-setting]")?.focus());
       }
+    } else {
+      state.settingsPopoverLockedLeft = null;
+      state.settingsPopoverLockedTop = null;
+      state.settingsCard?.style?.setProperty("--ld-settings-card-shift-x", "0px");
+      state.settingsCard?.style?.setProperty("--ld-settings-card-shift-y", "0px");
     }
 
     state.settingsPanel.classList.toggle("is-open", Boolean(isOpen));

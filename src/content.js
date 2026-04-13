@@ -571,14 +571,9 @@
   const handleSettingsPanelClick = (event) => runtime.settingsPanelUtils.handleSettingsPanelClick(state, event, {
     setSettingsPanelOpen
   });
-  const handleSettingsOptionClick = (event) => runtime.settingsUiUtils.handleSettingsOptionClick(state, event, {
-    HTMLButtonElementClass: HTMLButtonElement,
-    saveSettings,
-    applyDrawerWidth,
-    setSettingsPanelOpen
-  });
   const syncSettingsUI = () => runtime.settingsUiUtils.syncSettingsUI(state);
   const handleSettingsChange = (event) => runtime.settingsUiUtils.handleSettingsChange(state, event, {
+    HTMLInputElementClass: HTMLInputElement,
     HTMLSelectElementClass: HTMLSelectElement,
     saveSettings,
     applyDrawerWidth,
@@ -599,7 +594,7 @@
     updateSettingsPopoverPosition,
     documentRef: document
   });
-  const updateSettingsPopoverPosition = () => runtime.settingsUiUtils.updateSettingsPopoverPosition(state);
+  const updateSettingsPopoverPosition = (options = {}) => runtime.settingsUiUtils.updateSettingsPopoverPosition(state, options);
   const handleWindowResize = () => runtime.settingsUiUtils.handleWindowResize(state, {
     clampDrawerWidth,
     applyDrawerWidth,
@@ -666,7 +661,7 @@
     handleImagePreviewPointerMove,
     handleImagePreviewPointerEnd,
     handleDrawerBodyScroll,
-    handleSettingsOptionClick,
+    handleSettingsChange,
     setSettingsPanelOpen,
     syncSettingsUI,
     applyDrawerWidth,

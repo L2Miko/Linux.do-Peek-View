@@ -29,9 +29,11 @@
 
     const compactEnterThreshold = 56;
     const compactExitThreshold = 22;
+    const compactViewportOverflowThreshold = 56;
     const maxScrollTop = Math.max(0, state.drawerBody.scrollHeight - state.drawerBody.clientHeight);
+    const viewportOverflow = Math.max(0, state.drawerBody.scrollHeight - state.root.clientHeight);
 
-    if (maxScrollTop <= compactEnterThreshold + 12) {
+    if (viewportOverflow <= compactViewportOverflowThreshold) {
       if (!force && !state.isHeaderCompact) {
         return;
       }

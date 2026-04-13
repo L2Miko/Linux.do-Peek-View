@@ -31,6 +31,11 @@
         settings.drawerWidth = defaultSettings.drawerWidth;
       }
 
+      if (settings.drawerWidth !== "custom" && settings.drawerWidth in drawerWidths) {
+        settings.drawerWidthCustom = drawerWidths[settings.drawerWidth];
+        settings.drawerWidth = "custom";
+      }
+
       settings.drawerWidthCustom = typeof clampDrawerWidth === "function"
         ? clampDrawerWidth(settings.drawerWidthCustom)
         : settings.drawerWidthCustom;

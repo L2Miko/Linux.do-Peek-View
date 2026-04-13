@@ -20,13 +20,13 @@
     REPLY_UPLOAD_MARKER: "\u2063",
     REACTION_OPTIONS_CACHE_KEY: "ld-drawer-reaction-options-cache-v1",
     DEFAULT_SETTINGS: Object.freeze({
-      drawerWidth: "medium",
+      drawerWidth: "custom",
       drawerWidthCustom: 1080
     }),
     DRAWER_WIDTHS: Object.freeze({
-      narrow: "clamp(640px, 66vw, 1180px)",
-      medium: "clamp(820px, 78vw, 1500px)",
-      wide: "clamp(980px, 88vw, 1720px)"
+      narrow: 820,
+      medium: 1080,
+      wide: 1280
     }),
     LIST_ROW_SELECTOR: [
       "tr.topic-list-item",
