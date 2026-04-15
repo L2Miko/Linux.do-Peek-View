@@ -17,6 +17,17 @@
       : [];
     const isTopicAuthorPost = options.isTopicAuthorPost;
     const locationOrigin = options.locationOrigin || globalThis.location?.origin || "";
+    const pendingBoostPostIds = new Set();
+    const pendingBoostDeleteIds = new Set();
+    let boostPanel = null;
+    let boostPanelEditor = null;
+    let boostPanelSubmitButton = null;
+    let boostPanelCancelButton = null;
+    let boostPanelPostId = null;
+    let boostPanelAnchor = null;
+    let boostPanelHideTimer = null;
+    let cachedCurrentUsername = "";
+    let currentUsernameRequest = null;
 
     function getPostLists() {
       return [
@@ -36,6 +47,7 @@
 
       const parentPost = runtime.postLookup.getPostByNumber(replyToPostNumber, getPostLists());
       const replyToUsername = parentPost?.username || post?.reply_to_user?.username || "";
+      const replyToAvatarUrl = parentPost?.avatar_url || post?.reply_to_user?.avatar_url || "";
       const replyToAvatarTemplate = parentPost?.avatar_template || post?.reply_to_user?.avatar_template || "";
 
       const tab = document.createElement("a");
@@ -52,14 +64,20 @@
         </span>
       `;
 
-      if (replyToAvatarTemplate) {
+      if (replyToAvatarUrl || replyToAvatarTemplate) {
         const avatar = document.createElement("img");
         avatar.className = "ld-reply-to-tab-avatar";
         avatar.alt = replyToUsername || `#${replyToPostNumber}`;
         avatar.width = 24;
         avatar.height = 24;
         avatar.loading = "lazy";
-        avatar.src = runtime.topicRenderUtils.avatarUrl(replyToAvatarTemplate, locationOrigin);
+        runtime.topicRenderUtils.applyAvatarImage(avatar, {
+          avatarUrl: replyToAvatarUrl,
+          avatarTemplate: replyToAvatarTemplate
+        }, locationOrigin, {
+          size: 24,
+          animatedSize: 48
+        });
         tab.appendChild(avatar);
       }
 
@@ -122,6 +140,719 @@
       return emojiChar
         ? `<span class="ld-post-reaction-emoji" aria-hidden="true">${emojiChar}</span>`
         : `<span class="ld-post-reaction-fallback">:${normalizedId}:</span>`;
+    }
+
+    function buildPostBoostIconHtml() {
+      return `
+        <svg class="fa d-icon d-icon-rocket svg-icon fa-width-auto svg-string" width="1em" height="1em" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <use href="#rocket"></use>
+        </svg>
+      `;
+    }
+
+    function normalizeBoostText(value) {
+      return String(value || "").replace(/\s+/g, " ").trim();
+    }
+
+    function readBoostTextFromHtml(html) {
+      const markup = String(html || "").trim();
+      if (!markup) {
+        return "";
+      }
+
+      const template = document.createElement("template");
+      template.innerHTML = markup;
+      return normalizeBoostText(template.content.textContent || "");
+    }
+
+    function normalizeBoostItem(item) {
+      if (!item) {
+        return null;
+      }
+
+      if (typeof item === "string") {
+        const rawText = normalizeBoostText(item);
+        return rawText ? { raw: rawText } : null;
+      }
+
+      if (typeof item !== "object") {
+        return null;
+      }
+
+      const user = item.user && typeof item.user === "object" ? item.user : null;
+      const cookedHtml = String(
+        item.cooked
+        || item.cookedHtml
+        || item.cooked_html
+        || item.html
+        || item.rendered
+        || item.excerpt
+        || ""
+      ).trim();
+      const rawText = normalizeBoostText(
+        item.raw
+        || item.text
+        || item.content
+        || item.body
+        || readBoostTextFromHtml(cookedHtml)
+      );
+
+      if (!rawText && !cookedHtml) {
+        return null;
+      }
+
+      return {
+        id: Number(item.id || item.boost_id || item.boostId) || 0,
+        username: normalizeBoostText(item.username || item.user_username || user?.username || user?.name),
+        avatarTemplate: String(item.avatarTemplate || item.avatar_template || item.user_avatar_template || user?.avatar_template || "").trim(),
+        avatarUrl: String(item.avatarUrl || item.avatar_url || item.user_avatar_url || user?.avatar_url || user?.avatar || "").trim(),
+        canDelete: item.canDelete === true || item.can_delete === true,
+        raw: rawText,
+        cookedHtml
+      };
+    }
+
+    function getBoostSignature(boost) {
+      const normalized = normalizeBoostItem(boost);
+      if (!normalized) {
+        return "";
+      }
+
+      return [
+        normalized.username,
+        normalized.raw || readBoostTextFromHtml(normalized.cookedHtml)
+      ].map((value) => normalizeBoostText(value)).join("|");
+    }
+
+    function resolveCurrentUsername() {
+      if (cachedCurrentUsername) {
+        return cachedCurrentUsername;
+      }
+
+      const selectors = [
+        ".d-header .current-user [data-user-card]",
+        ".d-header .header-dropdown-toggle.current-user [data-user-card]",
+        ".d-header-icons .current-user [data-user-card]",
+        ".current-user [data-user-card]",
+        ".user-menu [data-user-card]"
+      ];
+
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        const username = normalizeBoostText(element?.getAttribute?.("data-user-card"));
+        if (username) {
+          cachedCurrentUsername = username;
+          return username;
+        }
+      }
+
+      const datasetUsername = normalizeBoostText(
+        document.body?.dataset?.currentUsername
+        || document.body?.dataset?.username
+        || document.documentElement?.dataset?.currentUsername
+        || document.documentElement?.dataset?.username
+      );
+      if (datasetUsername) {
+        cachedCurrentUsername = datasetUsername;
+        return datasetUsername;
+      }
+
+      return "";
+    }
+
+    async function loadCurrentUsername() {
+      if (cachedCurrentUsername) {
+        return cachedCurrentUsername;
+      }
+      if (currentUsernameRequest) {
+        return currentUsernameRequest;
+      }
+
+      currentUsernameRequest = fetch(`${locationOrigin}/session/current.json`, {
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            return "";
+          }
+          const data = await response.json().catch(() => null);
+          const username = normalizeBoostText(
+            data?.current_user?.username
+            || data?.currentUser?.username
+            || data?.user?.username
+            || data?.username
+          );
+          if (username) {
+            cachedCurrentUsername = username;
+          }
+          return username;
+        })
+        .catch(() => "")
+        .finally(() => {
+          currentUsernameRequest = null;
+        });
+
+      return currentUsernameRequest;
+    }
+
+    function isOwnBoost(boost) {
+      const currentUsername = normalizeBoostText(resolveCurrentUsername()).toLowerCase();
+      const boostUsername = normalizeBoostText(boost?.username).toLowerCase();
+      if (!boostUsername || !currentUsername) {
+        return Boolean(boost?.canDelete);
+      }
+      return boostUsername === currentUsername;
+    }
+
+    function ensureCurrentUsernameLoaded() {
+      if (cachedCurrentUsername || !state.content) {
+        return;
+      }
+
+      loadCurrentUsername().then((username) => {
+        if (!username || !state.content) {
+          return;
+        }
+        refreshBoostControls();
+      });
+    }
+
+    function getBoostLookupKeys(boost) {
+      const normalized = normalizeBoostItem(boost);
+      if (!normalized) {
+        return [];
+      }
+
+      const keys = [];
+      const id = Number(normalized.id);
+      const signature = getBoostSignature(normalized);
+      if (Number.isFinite(id) && id > 0) {
+        keys.push(`id:${id}`);
+      }
+      if (signature) {
+        keys.push(`sig:${signature}`);
+      }
+      return keys;
+    }
+
+    function mergeBoostItem(base, incoming) {
+      if (!base) {
+        return incoming;
+      }
+      if (!incoming) {
+        return base;
+      }
+
+      return {
+        ...base,
+        id: Number(base.id) || Number(incoming.id) || 0,
+        username: base.username || incoming.username,
+        avatarTemplate: base.avatarTemplate || incoming.avatarTemplate,
+        avatarUrl: base.avatarUrl || incoming.avatarUrl,
+        canDelete: Boolean(base.canDelete || incoming.canDelete),
+        raw: base.raw || incoming.raw,
+        cookedHtml: base.cookedHtml || incoming.cookedHtml
+      };
+    }
+
+    function pushBoostArray(target, value, seenArrays) {
+      if (!Array.isArray(value) || seenArrays.has(value)) {
+        return;
+      }
+      seenArrays.add(value);
+      for (const item of value) {
+        target.push(item);
+      }
+    }
+
+    function collectBoostCandidates(post) {
+      const candidates = [];
+      const seenArrays = new Set();
+      const discourseBoosts = post?.discourse_boosts && typeof post.discourse_boosts === "object"
+        ? post.discourse_boosts
+        : null;
+
+      pushBoostArray(candidates, post?.boosts, seenArrays);
+      pushBoostArray(candidates, post?.post_boosts, seenArrays);
+      pushBoostArray(candidates, discourseBoosts, seenArrays);
+      pushBoostArray(candidates, discourseBoosts?.boosts, seenArrays);
+      pushBoostArray(candidates, discourseBoosts?.items, seenArrays);
+      pushBoostArray(candidates, discourseBoosts?.list, seenArrays);
+      pushBoostArray(candidates, post?.__ld_local_boosts, seenArrays);
+
+      return candidates;
+    }
+
+    function findSourcePostElement(post) {
+      const postId = Number(post?.id);
+      const postNumber = Number(post?.post_number);
+      const selectors = [
+        Number.isFinite(postId) ? `.topic-post[data-post-id="${postId}"]` : "",
+        Number.isFinite(postId) ? `[data-post-id="${postId}"]` : "",
+        Number.isFinite(postNumber) ? `#post_${postNumber}` : ""
+      ].filter(Boolean);
+
+      for (const selector of selectors) {
+        for (const element of document.querySelectorAll(selector)) {
+          if (!(element instanceof HTMLElement)) {
+            continue;
+          }
+          if (state.root instanceof HTMLElement && state.root.contains(element)) {
+            continue;
+          }
+          return element;
+        }
+      }
+
+      return null;
+    }
+
+    function extractBoostsFromSourceDom(post) {
+      const sourcePost = findSourcePostElement(post);
+      if (!(sourcePost instanceof HTMLElement)) {
+        return [];
+      }
+
+      const result = [];
+      for (const bubble of sourcePost.querySelectorAll(".discourse-boosts__bubble")) {
+        if (!(bubble instanceof HTMLElement)) {
+          continue;
+        }
+
+        const userCard = bubble.querySelector("[data-user-card]");
+        const avatar = bubble.querySelector("img.avatar");
+        const cookedButton = bubble.querySelector(".discourse-boosts__cooked");
+        const cookedHtml = String(cookedButton?.innerHTML || "").trim();
+        const rawText = normalizeBoostText(cookedButton?.textContent || "");
+
+        if (!rawText && !cookedHtml) {
+          continue;
+        }
+
+        result.push({
+          username: normalizeBoostText(userCard?.getAttribute("data-user-card")),
+          avatarUrl: avatar instanceof HTMLImageElement ? String(avatar.currentSrc || avatar.src || "").trim() : "",
+          canDelete: bubble.querySelector(".discourse-boosts__delete") instanceof HTMLElement,
+          raw: rawText,
+          cookedHtml
+        });
+      }
+
+      return result;
+    }
+
+    function getNormalizedPostBoosts(post) {
+      const seen = new Map();
+      const result = [];
+      const removedKeys = new Set(Array.isArray(post?.__ld_removed_boost_keys) ? post.__ld_removed_boost_keys : []);
+
+      const upsertBoost = (item) => {
+        const normalized = normalizeBoostItem(item);
+        const signature = getBoostSignature(normalized);
+        if (!normalized || !signature) {
+          return;
+        }
+        const lookupKeys = getBoostLookupKeys(normalized);
+        if (lookupKeys.some((key) => removedKeys.has(key))) {
+          return;
+        }
+
+        const existingIndex = seen.get(signature);
+        if (typeof existingIndex === "number") {
+          result[existingIndex] = mergeBoostItem(result[existingIndex], normalized);
+          return;
+        }
+
+        seen.set(signature, result.length);
+        result.push(normalized);
+      };
+
+      for (const item of extractBoostsFromSourceDom(post)) {
+        upsertBoost(item);
+      }
+
+      for (const item of collectBoostCandidates(post)) {
+        upsertBoost(item);
+      }
+
+      return result;
+    }
+
+    function postHasOwnedBoost(post) {
+      ensureCurrentUsernameLoaded();
+      return getNormalizedPostBoosts(post).some((boost) => isOwnBoost(boost));
+    }
+
+    function extractBoostsFromResponse(data) {
+      if (!data || typeof data !== "object") {
+        return [];
+      }
+
+      const candidates = [];
+      if (data.boost && typeof data.boost === "object") {
+        candidates.push(data.boost);
+      }
+      if (data.created_boost && typeof data.created_boost === "object") {
+        candidates.push(data.created_boost);
+      }
+      candidates.push(data);
+
+      const normalized = candidates
+        .map((item) => normalizeBoostItem(item))
+        .filter(Boolean);
+
+      return normalized.length ? [normalized[0]] : [];
+    }
+
+    function syncPostBoostListElement(container, post) {
+      if (!(container instanceof HTMLElement)) {
+        return;
+      }
+
+      const boosts = getNormalizedPostBoosts(post);
+      container.replaceChildren();
+      container.hidden = boosts.length === 0;
+      container.classList.toggle("is-empty", boosts.length === 0);
+
+      if (boosts.length === 0) {
+        return;
+      }
+
+      const list = document.createElement("div");
+      list.className = "ld-post-boost-list-inner";
+
+      for (const boost of boosts) {
+        const bubble = document.createElement("span");
+        bubble.className = "ld-post-boost-bubble";
+        if (isOwnBoost(boost)) {
+          bubble.classList.add("is-owned");
+        }
+
+        const avatar = document.createElement(boost.username ? "a" : "span");
+        avatar.className = "ld-post-boost-avatar-link";
+        if (boost.username) {
+          avatar.setAttribute("data-user-card", boost.username);
+        }
+
+        const image = document.createElement("img");
+        image.className = "avatar";
+        image.alt = "";
+        image.width = 24;
+        image.height = 24;
+        image.loading = "lazy";
+        runtime.topicRenderUtils.applyAvatarImage(image, {
+          avatarUrl: boost.avatarUrl,
+          avatarTemplate: boost.avatarTemplate
+        }, locationOrigin, {
+          size: 24,
+          animatedSize: 48
+        });
+        avatar.appendChild(image);
+
+        const content = document.createElement("span");
+        content.className = "ld-post-boost-bubble-content";
+        if (boost.cookedHtml) {
+          content.innerHTML = boost.cookedHtml;
+        } else {
+          content.textContent = boost.raw || readBoostTextFromHtml(boost.cookedHtml);
+        }
+
+        bubble.append(avatar, content);
+
+        const boostId = Number(boost.id);
+        if (isOwnBoost(boost) && Number.isFinite(boostId) && boostId > 0) {
+          bubble.classList.add("is-deletable");
+          content.setAttribute("role", "button");
+          content.setAttribute("tabindex", "0");
+          content.setAttribute("aria-expanded", "false");
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "ld-post-boost-delete btn-transparent --danger";
+          deleteButton.setAttribute("aria-label", "Remove boost");
+          deleteButton.disabled = pendingBoostDeleteIds.has(boostId);
+          deleteButton.innerHTML = `
+            <svg class="fa d-icon d-icon-trash-can svg-icon fa-width-auto svg-string" width="1em" height="1em" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#trash-can"></use></svg>
+          `;
+          deleteButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handlePostBoostDelete(Number(post?.id), boost);
+          });
+
+          const toggleDeleteButton = () => {
+            const nextSelected = !bubble.classList.contains("is-selected");
+            bubble.classList.toggle("is-selected", nextSelected);
+            content.setAttribute("aria-expanded", String(nextSelected));
+          };
+
+          content.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleDeleteButton();
+          });
+          content.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            toggleDeleteButton();
+          });
+
+          bubble.appendChild(deleteButton);
+        }
+
+        list.appendChild(bubble);
+      }
+
+      container.appendChild(list);
+    }
+
+    function syncPostBoostButton(button, post) {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      const postId = Number(post?.id || button.dataset.postId);
+      const disabled = Number.isFinite(postId) && pendingBoostPostIds.has(postId);
+      const hasOwnedBoost = postHasOwnedBoost(post);
+      button.hidden = hasOwnedBoost;
+      button.disabled = disabled;
+      button.setAttribute("aria-disabled", String(disabled));
+      button.setAttribute("aria-label", "发送 Boost");
+      button.setAttribute("title", "发送 Boost");
+      button.innerHTML = `
+        <span class="ld-post-boost-icon" aria-hidden="true">${buildPostBoostIconHtml()}</span>
+      `;
+    }
+
+    async function handlePostBoostDelete(postId, boost) {
+      const boostId = Number(boost?.id);
+      if (!Number.isFinite(postId) || !Number.isFinite(boostId) || boostId <= 0 || pendingBoostDeleteIds.has(boostId)) {
+        return;
+      }
+
+      pendingBoostDeleteIds.add(boostId);
+      const post = getPostById(postId);
+      syncPostBoostControls(postId, post);
+
+      try {
+        await removePostBoost(boostId);
+        runtime.postLocalMutations.applyPostBoostRemovalLocally(postId, boost, getPostLists(), {
+          getBoostSignature,
+          getBoostLookupKeys
+        });
+        if (state.replyStatus) {
+          state.replyStatus.textContent = "Boost 已删除";
+        }
+      } catch (error) {
+        if (state.replyStatus) {
+          state.replyStatus.textContent = error?.message || "Boost 删除失败";
+        }
+      } finally {
+        pendingBoostDeleteIds.delete(boostId);
+        const latestPost = getPostById(postId) || post;
+        syncPostBoostControls(postId, latestPost);
+      }
+    }
+
+    async function addPostBoost(postId, raw) {
+      const csrfToken = runtime.securityUtils.getCsrfToken(document);
+      if (!csrfToken) {
+        throw new Error("未找到登录令牌，请刷新页面后重试");
+      }
+
+      const body = new URLSearchParams();
+      body.set("raw", raw);
+
+      const response = await fetch(`${locationOrigin}/discourse-boosts/posts/${postId}/boosts`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRF-Token": csrfToken
+        },
+        body
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      const data = contentType.includes("json") ? await response.json() : null;
+      if (!response.ok) {
+        throw new Error(await runtime.networkResponse.readRequestError(response, "Boost 发送失败"));
+      }
+
+      return data;
+    }
+
+    async function removePostBoost(boostId) {
+      const csrfToken = runtime.securityUtils.getCsrfToken(document);
+      if (!csrfToken) {
+        throw new Error("未找到登录令牌，请刷新页面后重试");
+      }
+
+      const response = await fetch(`${locationOrigin}/discourse-boosts/boosts/${boostId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRF-Token": csrfToken
+        }
+      });
+
+      if (response.ok || response.status === 204 || response.status === 404) {
+        return;
+      }
+
+      throw new Error(await runtime.networkResponse.readRequestError(response, "Boost 删除失败"));
+    }
+
+    function clearBoostPanelHideTimer() {
+      if (boostPanelHideTimer) {
+        clearTimeout(boostPanelHideTimer);
+        boostPanelHideTimer = null;
+      }
+    }
+
+    function scheduleBoostPanelHide() {
+      clearBoostPanelHideTimer();
+      boostPanelHideTimer = setTimeout(() => {
+        closeBoostPanel();
+      }, reactionPickerHideDelayMs);
+    }
+
+    function ensureBoostPanel() {
+      if (boostPanel instanceof HTMLElement) {
+        return boostPanel;
+      }
+      if (!(state.root instanceof HTMLElement)) {
+        return null;
+      }
+
+      boostPanel = document.createElement("div");
+      boostPanel.className = "ld-post-boost-floating-panel ld-post-boost-panel fk-d-menu discourse-boosts-content -animated";
+      boostPanel.setAttribute("data-identifier", "discourse-boosts");
+      boostPanel.setAttribute("data-content", "");
+      boostPanel.setAttribute("role", "dialog");
+      boostPanel.innerHTML = `
+        <div class="fk-d-menu__inner-content">
+          <div class="ld-post-boost-input-container">
+            <div class="ld-post-boost-editor" contenteditable="true"></div>
+            <button class="ld-post-boost-submit btn no-text btn-icon btn-default --success btn-icon-only" type="button" title="Boost" aria-label="Boost">
+              <svg class="fa d-icon d-icon-check svg-icon fa-width-auto svg-string" width="1em" height="1em" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#check"></use></svg>
+            </button>
+            <button class="ld-post-boost-cancel btn no-text btn-icon btn-default --danger btn-icon-only" type="button" title="Cancel" aria-label="Cancel">
+              <svg class="fa d-icon d-icon-xmark svg-icon fa-width-auto svg-string" width="1em" height="1em" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#xmark"></use></svg>
+            </button>
+          </div>
+        </div>
+      `;
+
+      boostPanelEditor = boostPanel.querySelector(".ld-post-boost-editor");
+      boostPanelSubmitButton = boostPanel.querySelector(".ld-post-boost-submit");
+      boostPanelCancelButton = boostPanel.querySelector(".ld-post-boost-cancel");
+
+      boostPanel.addEventListener("mouseenter", clearBoostPanelHideTimer);
+      boostPanel.addEventListener("mouseleave", scheduleBoostPanelHide);
+
+      if (boostPanelEditor instanceof HTMLElement) {
+        boostPanelEditor.addEventListener("input", () => syncBoostPanelComposer());
+        boostPanelEditor.addEventListener("keydown", (event) => {
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            handlePostBoostSubmit(boostPanelPostId);
+          }
+        });
+      }
+
+      if (boostPanelSubmitButton instanceof HTMLButtonElement) {
+        boostPanelSubmitButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          handlePostBoostSubmit(boostPanelPostId);
+        });
+      }
+
+      if (boostPanelCancelButton instanceof HTMLButtonElement) {
+        boostPanelCancelButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          closeBoostPanel();
+        });
+      }
+
+      state.root.appendChild(boostPanel);
+      return boostPanel;
+    }
+
+    function syncBoostPanelComposer() {
+      const post = getPostById(Number(boostPanelPostId));
+      const isPending = pendingBoostPostIds.has(Number(boostPanelPostId));
+      const raw = boostPanelEditor instanceof HTMLElement ? boostPanelEditor.textContent.trim() : "";
+      const placeholderName = post?.username || post?.name || "该用户";
+
+      if (boostPanelEditor instanceof HTMLElement) {
+        boostPanelEditor.setAttribute("data-placeholder", `Boost ${placeholderName}...`);
+        boostPanelEditor.contentEditable = isPending ? "false" : "true";
+      }
+      if (boostPanelSubmitButton instanceof HTMLButtonElement) {
+        boostPanelSubmitButton.disabled = isPending || !raw;
+      }
+      if (boostPanelCancelButton instanceof HTMLButtonElement) {
+        boostPanelCancelButton.disabled = isPending;
+      }
+    }
+
+    function positionBoostPanel() {
+      if (!(boostPanel instanceof HTMLElement) || !(boostPanelAnchor instanceof HTMLElement) || !(state.root instanceof HTMLElement)) {
+        return;
+      }
+      const rootRect = state.root.getBoundingClientRect();
+      const anchorRect = boostPanelAnchor.getBoundingClientRect();
+      const panelWidth = Math.min(360, Math.max(260, rootRect.width - 32));
+      const preferredLeft = anchorRect.left - rootRect.left - panelWidth + anchorRect.width - 6;
+      const left = Math.max(16, Math.min(rootRect.width - panelWidth - 16, preferredLeft));
+      const bottom = Math.max(12, rootRect.bottom - anchorRect.top + 8);
+      boostPanel.style.left = `${left}px`;
+      boostPanel.style.top = "auto";
+      boostPanel.style.bottom = `${bottom}px`;
+      boostPanel.style.width = `${panelWidth}px`;
+      boostPanel.style.transform = "none";
+    }
+
+    function openBoostPanel(postId, anchor) {
+      const panel = ensureBoostPanel();
+      if (!(panel instanceof HTMLElement) || !(anchor instanceof HTMLElement)) {
+        return;
+      }
+      clearBoostPanelHideTimer();
+      boostPanelPostId = postId;
+      boostPanelAnchor = anchor;
+      panel.classList.add("is-expanded");
+      syncBoostPanelComposer();
+      positionBoostPanel();
+      requestAnimationFrame(() => {
+        positionBoostPanel();
+        if (boostPanelEditor instanceof HTMLElement) {
+          boostPanelEditor.focus();
+        }
+      });
+    }
+
+    function closeBoostPanel() {
+      clearBoostPanelHideTimer();
+      if (boostPanel instanceof HTMLElement) {
+        boostPanel.classList.remove("is-expanded");
+      }
+      boostPanelPostId = null;
+      boostPanelAnchor = null;
     }
 
     function syncPostBookmarkButton(button, post) {
@@ -240,6 +971,45 @@
 
       for (const button of buttons) {
         syncPostBookmarkButton(button, post);
+      }
+    }
+
+    function syncPostBoostControls(postId, post, scope = state.content) {
+      if (!Number.isFinite(postId) || !(scope instanceof Element || scope instanceof DocumentFragment || scope instanceof Document)) {
+        return;
+      }
+
+      const buttons = [];
+      const wraps = [];
+      const lists = [];
+      if (scope instanceof Element && scope.matches(`.ld-post-boost-wrap[data-post-id="${postId}"]`)) {
+        wraps.push(scope);
+      }
+      if (scope instanceof Element && scope.matches(`.ld-post-boost-button[data-post-id="${postId}"]`)) {
+        buttons.push(scope);
+      }
+      if (scope instanceof Element && scope.matches(`.ld-post-boost-list[data-post-id="${postId}"]`)) {
+        lists.push(scope);
+      }
+      for (const wrap of scope.querySelectorAll(`.ld-post-boost-wrap[data-post-id="${postId}"]`)) {
+        wraps.push(wrap);
+      }
+      for (const button of scope.querySelectorAll(`.ld-post-boost-button[data-post-id="${postId}"]`)) {
+        buttons.push(button);
+      }
+      for (const list of scope.querySelectorAll(`.ld-post-boost-list[data-post-id="${postId}"]`)) {
+        lists.push(list);
+      }
+
+      const hasOwnedBoost = postHasOwnedBoost(post);
+      for (const wrap of wraps) {
+        wrap.hidden = hasOwnedBoost;
+      }
+      for (const button of buttons) {
+        syncPostBoostButton(button, post);
+      }
+      for (const list of lists) {
+        syncPostBoostListElement(list, post);
       }
     }
 
@@ -618,6 +1388,59 @@
       }
     }
 
+    async function handlePostBoostSubmit(postId) {
+      if (!Number.isFinite(postId) || pendingBoostPostIds.has(postId)) {
+        return;
+      }
+
+      const post = getPostById(postId);
+      if (!post || !(boostPanel instanceof HTMLElement)) {
+        return;
+      }
+
+      const raw = String(boostPanelEditor?.textContent || "").trim();
+      if (!raw) {
+        syncBoostPanelComposer();
+        return;
+      }
+
+      pendingBoostPostIds.add(postId);
+      syncBoostPanelComposer();
+
+      try {
+        const result = await addPostBoost(postId, raw);
+        const payload = runtime.postPayload.normalizePostMutationPayload(result);
+        if (payload && typeof payload === "object") {
+          runtime.postPayload.applyPostServerPayload(postId, payload, getPostLists());
+        }
+        for (const boost of extractBoostsFromResponse(result)) {
+          runtime.postLocalMutations.applyPostBoostLocally(postId, boost, getPostLists(), {
+            getBoostSignature,
+            getBoostLookupKeys
+          });
+        }
+        if (boostPanelEditor instanceof HTMLElement) {
+          boostPanelEditor.textContent = "";
+        }
+        closeBoostPanel();
+        syncPostBoostControls(postId, getPostById(postId) || post);
+        setTimeout(() => {
+          const latestPost = getPostById(postId) || post;
+          syncPostBoostControls(postId, latestPost);
+        }, 300);
+        if (state.replyStatus) {
+          state.replyStatus.textContent = "Boost 已发送";
+        }
+      } catch (error) {
+        if (state.replyStatus) {
+          state.replyStatus.textContent = error?.message || "Boost 发送失败";
+        }
+      } finally {
+        pendingBoostPostIds.delete(postId);
+        syncBoostPanelComposer();
+      }
+    }
+
     function buildPostReactionButton(post) {
       const postId = Number(post?.id);
       if (!Number.isFinite(postId)) {
@@ -687,6 +1510,46 @@
       return button;
     }
 
+    function buildPostBoostButton(post) {
+      const postId = Number(post?.id);
+      if (!Number.isFinite(postId)) {
+        return null;
+      }
+
+      const wrap = document.createElement("div");
+      wrap.className = "ld-post-boost-wrap";
+      wrap.dataset.postId = String(postId);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ld-post-boost-button btn no-text btn-icon fk-d-menu__trigger discourse-boosts-trigger post-action-menu__boost boost btn-flat";
+      button.dataset.postId = String(postId);
+      button.setAttribute("data-identifier", "discourse-boosts");
+      button.setAttribute("data-trigger", "");
+      button.addEventListener("mouseenter", () => {
+        clearBoostPanelHideTimer();
+        openBoostPanel(postId, button);
+      });
+      button.addEventListener("mouseleave", () => {
+        if (boostPanelPostId === postId && boostPanel?.classList.contains("is-expanded")) {
+          scheduleBoostPanelHide();
+        }
+      });
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (boostPanelPostId === postId && boostPanel?.classList.contains("is-expanded")) {
+          closeBoostPanel();
+        } else {
+          openBoostPanel(postId, button);
+        }
+      });
+
+      wrap.append(button);
+      syncPostBoostControls(postId, post, wrap);
+      return wrap;
+    }
+
     function buildPostCard(post) {
       const article = document.createElement("article");
       article.className = "ld-post-card";
@@ -695,6 +1558,9 @@
       }
       if (typeof post.post_number === "number") {
         article.dataset.postNumber = String(post.post_number);
+      }
+      if (typeof post.id === "number") {
+        article.dataset.postId = String(post.id);
       }
       const replyToTab = buildReplyToTab(post);
       if (replyToTab) {
@@ -708,7 +1574,13 @@
       avatar.className = "ld-post-avatar";
       avatar.alt = post.username || "avatar";
       avatar.loading = "lazy";
-      avatar.src = runtime.topicRenderUtils.avatarUrl(post.avatar_template, locationOrigin);
+      runtime.topicRenderUtils.applyAvatarImage(avatar, {
+        avatarUrl: post.avatar_url,
+        avatarTemplate: post.avatar_template
+      }, locationOrigin, {
+        size: 40,
+        animatedSize: 48
+      });
 
       const authorBlock = document.createElement("div");
       authorBlock.className = "ld-post-author";
@@ -754,6 +1626,11 @@
         actions.appendChild(bookmarkButton);
       }
 
+      const boostWrap = buildPostBoostButton(post);
+      if (boostWrap) {
+        actions.insertBefore(boostWrap, bookmarkButton || null);
+      }
+
       const replyButton = document.createElement("button");
       replyButton.type = "button";
       replyButton.className = "ld-post-reply-button";
@@ -768,10 +1645,16 @@
       });
 
       actions.appendChild(replyButton);
+      const boostList = document.createElement("div");
+      boostList.className = "ld-post-boost-list";
+      if (Number.isFinite(Number(post?.id))) {
+        boostList.dataset.postId = String(post.id);
+      }
+      syncPostBoostListElement(boostList, post);
       if (replyToTab) {
         article.append(replyToTab);
       }
-      article.append(header, body, actions);
+      article.append(header, body, actions, boostList);
       return article;
     }
 
@@ -809,6 +1692,23 @@
       }
     }
 
+    function refreshBoostControls() {
+      if (!state.content) {
+        return;
+      }
+
+      for (const button of state.content.querySelectorAll(".ld-post-boost-button[data-post-id]")) {
+        const postId = Number(button.getAttribute("data-post-id"));
+        if (!Number.isFinite(postId)) {
+          continue;
+        }
+        const post = getPostById(postId);
+        if (post) {
+          syncPostBoostControls(postId, post, state.content);
+        }
+      }
+    }
+
     function ensureReactionOptionsLoaded() {
       state.reactionOptions = [...forcedReactionOptions];
       state.likeReactionId = "heart";
@@ -831,6 +1731,7 @@
       buildPostCard,
       refreshReactionControls,
       refreshBookmarkControls,
+      refreshBoostControls,
       ensureReactionOptionsLoaded
     };
   }

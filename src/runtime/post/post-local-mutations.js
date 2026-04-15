@@ -113,8 +113,116 @@
     }
   }
 
+  function applyPostBoostLocally(postId, boost, sourceLists = [], options = {}) {
+    if (!Number.isFinite(postId) || !boost || typeof boost !== "object") {
+      return;
+    }
+
+    const getBoostSignature = typeof options.getBoostSignature === "function"
+      ? options.getBoostSignature
+      : (item) => `${String(item?.username || "").trim()}|${String(item?.raw || "").trim()}|${String(item?.cookedHtml || "").trim()}`;
+    const getBoostLookupKeys = typeof options.getBoostLookupKeys === "function"
+      ? options.getBoostLookupKeys
+      : (item) => {
+        const keys = [];
+        const id = Number(item?.id);
+        const signature = getBoostSignature(item);
+        if (Number.isFinite(id) && id > 0) {
+          keys.push(`id:${id}`);
+        }
+        if (signature) {
+          keys.push(`sig:${signature}`);
+        }
+        return keys;
+      };
+
+    const nextBoost = { ...boost };
+    const nextSignature = getBoostSignature(nextBoost);
+    if (!nextSignature) {
+      return;
+    }
+
+    const seen = new Set();
+    for (const list of sourceLists) {
+      for (const post of list || []) {
+        if (Number(post?.id) !== postId || seen.has(post) || typeof post !== "object") {
+          continue;
+        }
+        seen.add(post);
+
+        const current = Array.isArray(post.__ld_local_boosts) ? [...post.__ld_local_boosts] : [];
+        const nextLookupKeys = getBoostLookupKeys(nextBoost);
+        const hasSameBoost = current.some((item) => getBoostSignature(item) === nextSignature);
+        if (!hasSameBoost) {
+          current.push(nextBoost);
+        }
+        post.__ld_local_boosts = current;
+
+        if (Array.isArray(post.__ld_removed_boost_keys) && nextLookupKeys.length) {
+          post.__ld_removed_boost_keys = post.__ld_removed_boost_keys.filter((key) => !nextLookupKeys.includes(key));
+        }
+      }
+    }
+  }
+
+  function applyPostBoostRemovalLocally(postId, boost, sourceLists = [], options = {}) {
+    if (!Number.isFinite(postId) || !boost || typeof boost !== "object") {
+      return;
+    }
+
+    const getBoostSignature = typeof options.getBoostSignature === "function"
+      ? options.getBoostSignature
+      : (item) => `${String(item?.username || "").trim()}|${String(item?.raw || "").trim()}|${String(item?.cookedHtml || "").trim()}`;
+    const getBoostLookupKeys = typeof options.getBoostLookupKeys === "function"
+      ? options.getBoostLookupKeys
+      : (item) => {
+        const keys = [];
+        const id = Number(item?.id);
+        const signature = getBoostSignature(item);
+        if (Number.isFinite(id) && id > 0) {
+          keys.push(`id:${id}`);
+        }
+        if (signature) {
+          keys.push(`sig:${signature}`);
+        }
+        return keys;
+      };
+
+    const removedKeys = getBoostLookupKeys(boost);
+    if (!removedKeys.length) {
+      return;
+    }
+
+    const seen = new Set();
+    for (const list of sourceLists) {
+      for (const post of list || []) {
+        if (Number(post?.id) !== postId || seen.has(post) || typeof post !== "object") {
+          continue;
+        }
+        seen.add(post);
+
+        const currentRemoved = Array.isArray(post.__ld_removed_boost_keys) ? [...post.__ld_removed_boost_keys] : [];
+        for (const key of removedKeys) {
+          if (!currentRemoved.includes(key)) {
+            currentRemoved.push(key);
+          }
+        }
+        post.__ld_removed_boost_keys = currentRemoved;
+
+        if (Array.isArray(post.__ld_local_boosts)) {
+          post.__ld_local_boosts = post.__ld_local_boosts.filter((item) => {
+            const itemKeys = getBoostLookupKeys(item);
+            return !itemKeys.some((key) => currentRemoved.includes(key));
+          });
+        }
+      }
+    }
+  }
+
   runtime.postLocalMutations = {
     applyPostReactionLocally,
-    applyPostBookmarkLocally
+    applyPostBookmarkLocally,
+    applyPostBoostLocally,
+    applyPostBoostRemovalLocally
   };
 })();

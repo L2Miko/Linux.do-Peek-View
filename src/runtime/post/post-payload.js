@@ -18,7 +18,10 @@
     "bookmark_auto_delete_preference",
     "likeAction",
     "current_user_reaction",
-    "current_user_used_main_reaction"
+    "current_user_used_main_reaction",
+    "boosts",
+    "discourse_boosts",
+    "post_boosts"
   ]);
 
   function normalizePostMutationPayload(payload) {
@@ -36,6 +39,9 @@
       || "current_user_reaction" in payload
       || "bookmarked" in payload
       || "bookmark_id" in payload
+      || "boosts" in payload
+      || "discourse_boosts" in payload
+      || "post_boosts" in payload
     ) {
       return payload;
     }

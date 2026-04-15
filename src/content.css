@@ -1353,16 +1353,149 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   padding: 0 16px 14px;
 }
 
+#ld-drawer-root .ld-post-boost-list {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 16px 14px;
+}
+
+#ld-drawer-root .ld-post-boost-list[hidden],
+#ld-drawer-root .ld-post-boost-list.is-empty {
+  display: none;
+}
+
+#ld-drawer-root .ld-post-boost-list-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  width: 100%;
+}
+
+#ld-drawer-root .ld-post-boost-bubble {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(100%, 320px);
+  padding: 4px 10px 4px 4px;
+  border: 1px solid color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.14)) 86%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--secondary, #fff) 95%, rgba(59, 130, 246, 0.06));
+}
+
+#ld-drawer-root .ld-post-boost-bubble.is-owned {
+  border-color: color-mix(in srgb, var(--tertiary, #3b82f6) 28%, var(--primary-low, rgba(15, 23, 42, 0.16)));
+}
+
+#ld-drawer-root .ld-post-boost-bubble.is-selected {
+  padding-right: 34px;
+}
+
+#ld-drawer-root .ld-post-boost-avatar-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+#ld-drawer-root .ld-post-boost-avatar-link .avatar {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: cover;
+}
+
+#ld-drawer-root .ld-post-boost-bubble-content {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--primary, #0f172a) 92%, #000);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: default;
+  font-weight: 500;
+}
+
+#ld-drawer-root .ld-post-boost-bubble.is-deletable .ld-post-boost-bubble-content {
+  cursor: pointer;
+}
+
+#ld-drawer-root .ld-post-boost-bubble-content p {
+  margin: 0;
+}
+
+#ld-drawer-root .ld-post-boost-delete {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, #dc2626 82%, var(--primary-medium, rgba(15, 23, 42, 0.5)));
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+#ld-drawer-root .ld-post-boost-bubble.is-selected .ld-post-boost-delete {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#ld-drawer-root .ld-post-boost-delete:hover:not(:disabled) {
+  background: transparent;
+  color: #dc2626;
+}
+
+#ld-drawer-root .ld-post-boost-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#ld-drawer-root .ld-post-boost-delete svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+#ld-drawer-root .ld-post-card.ld-post-card-op .ld-post-actions {
+  position: relative;
+  z-index: 6;
+}
+
 #ld-drawer-root .ld-post-actions > .ld-post-reaction-wrap {
   order: 1;
 }
 
-#ld-drawer-root .ld-post-actions > .ld-post-bookmark-button {
+#ld-drawer-root .ld-post-actions > .ld-post-boost-wrap {
   order: 2;
 }
 
-#ld-drawer-root .ld-post-actions > .ld-post-reply-button {
+#ld-drawer-root .ld-post-actions > .ld-post-bookmark-button {
   order: 3;
+}
+
+#ld-drawer-root .ld-post-actions > .ld-post-reply-button {
+  order: 4;
 }
 
 #ld-drawer-root .ld-post-actions > .ld-post-jump-back-button {
@@ -1430,6 +1563,22 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   z-index: 20;
 }
 
+#ld-drawer-root .ld-post-boost-wrap {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+#ld-drawer-root .ld-post-boost-wrap[hidden],
+#ld-drawer-root .ld-post-boost-button[hidden] {
+  display: none !important;
+}
+
+#ld-drawer-root .ld-post-boost-wrap.is-expanded {
+  z-index: 24;
+}
+
 #ld-drawer-root .ld-post-reaction-button {
   display: inline-flex !important;
   align-items: center;
@@ -1465,7 +1614,8 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   cursor: not-allowed;
 }
 
-#ld-drawer-root .ld-post-bookmark-button {
+#ld-drawer-root .ld-post-bookmark-button,
+#ld-drawer-root .ld-post-boost-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1480,7 +1630,8 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   box-sizing: border-box;
 }
 
-#ld-drawer-root .ld-post-bookmark-button:hover:not(:disabled) {
+#ld-drawer-root .ld-post-bookmark-button:hover:not(:disabled),
+#ld-drawer-root .ld-post-boost-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--secondary, #fff) 84%, var(--tertiary, #3b82f6) 16%);
   color: var(--tertiary, #3b82f6);
 }
@@ -1495,7 +1646,13 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   cursor: not-allowed;
 }
 
-#ld-drawer-root .ld-post-bookmark-icon {
+#ld-drawer-root .ld-post-boost-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#ld-drawer-root .ld-post-bookmark-icon,
+#ld-drawer-root .ld-post-boost-icon {
   width: 14px;
   height: 14px;
   display: inline-flex;
@@ -1503,10 +1660,117 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   justify-content: center;
 }
 
-#ld-drawer-root .ld-post-bookmark-icon svg {
+#ld-drawer-root .ld-post-bookmark-icon svg,
+#ld-drawer-root .ld-post-boost-icon svg {
   width: 14px;
   height: 14px;
   display: block;
+}
+
+#ld-drawer-root .ld-post-boost-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 48px;
+  width: min(288px, calc(100% - 32px));
+  min-width: 196px;
+  z-index: 8;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transform-origin: right bottom;
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms step-end;
+}
+
+#ld-drawer-root .ld-post-boost-floating-panel {
+  right: auto;
+  bottom: auto;
+}
+
+#ld-drawer-root .ld-post-boost-wrap.is-expanded .ld-post-boost-panel,
+#ld-drawer-root .ld-post-boost-wrap:hover .ld-post-boost-panel,
+#ld-drawer-root .ld-post-boost-wrap:focus-within .ld-post-boost-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition: opacity 180ms ease, transform 180ms ease, visibility 0s linear;
+}
+
+#ld-drawer-root .ld-post-boost-floating-panel.is-expanded {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition: opacity 180ms ease, visibility 0s linear;
+}
+
+#ld-drawer-root .ld-post-boost-input-container {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--secondary, #fff) 84%, rgba(59, 130, 246, 0.08));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.12)) 82%, transparent);
+}
+
+#ld-drawer-root .ld-post-boost-panel .fk-d-menu__inner-content {
+  width: 100%;
+  min-width: 0;
+}
+
+#ld-drawer-root .ld-post-boost-editor {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  min-height: 30px;
+  max-height: 30px;
+  overflow: hidden;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 30px;
+  outline: none;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+#ld-drawer-root .ld-post-boost-editor:empty::before {
+  content: attr(data-placeholder);
+  display: block;
+  line-height: 30px;
+  color: var(--primary-medium, rgba(15, 23, 42, 0.5));
+  pointer-events: none;
+}
+
+#ld-drawer-root .ld-post-boost-editor:focus {
+  box-shadow: none;
+}
+
+#ld-drawer-root .ld-post-boost-submit,
+#ld-drawer-root .ld-post-boost-cancel {
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+}
+
+#ld-drawer-root .ld-post-boost-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #ld-drawer-root .ld-post-reaction-icon {
