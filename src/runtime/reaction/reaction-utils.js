@@ -23,7 +23,13 @@
 
     try {
       const fallbackBase = globalThis.location?.origin || "https://linux.do";
-      return new URL(value, baseOrigin || fallbackBase).toString();
+      const parsed = new URL(value, baseOrigin || fallbackBase);
+      if (/^cdn3\.linux\.do$/i.test(parsed.hostname)) {
+        parsed.hostname = "cdn3.ldstatic.com";
+      } else if (/^cdn\.linux\.do$/i.test(parsed.hostname)) {
+        parsed.hostname = "cdn.ldstatic.com";
+      }
+      return parsed.toString();
     } catch {
       return "";
     }

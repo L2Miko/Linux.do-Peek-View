@@ -27,7 +27,6 @@
     let boostPanelAnchor = null;
     let boostPanelHideTimer = null;
     let cachedCurrentUsername = "";
-    let currentUsernameRequest = null;
 
     function getPostLists() {
       return [
@@ -260,45 +259,6 @@
       return "";
     }
 
-    async function loadCurrentUsername() {
-      if (cachedCurrentUsername) {
-        return cachedCurrentUsername;
-      }
-      if (currentUsernameRequest) {
-        return currentUsernameRequest;
-      }
-
-      currentUsernameRequest = fetch(`${locationOrigin}/session/current.json`, {
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest"
-        }
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            return "";
-          }
-          const data = await response.json().catch(() => null);
-          const username = normalizeBoostText(
-            data?.current_user?.username
-            || data?.currentUser?.username
-            || data?.user?.username
-            || data?.username
-          );
-          if (username) {
-            cachedCurrentUsername = username;
-          }
-          return username;
-        })
-        .catch(() => "")
-        .finally(() => {
-          currentUsernameRequest = null;
-        });
-
-      return currentUsernameRequest;
-    }
-
     function isOwnBoost(boost) {
       const currentUsername = normalizeBoostText(resolveCurrentUsername()).toLowerCase();
       const boostUsername = normalizeBoostText(boost?.username).toLowerCase();
@@ -309,16 +269,11 @@
     }
 
     function ensureCurrentUsernameLoaded() {
-      if (cachedCurrentUsername || !state.content) {
+      if (cachedCurrentUsername) {
         return;
       }
 
-      loadCurrentUsername().then((username) => {
-        if (!username || !state.content) {
-          return;
-        }
-        refreshBoostControls();
-      });
+      cachedCurrentUsername = normalizeBoostText(resolveCurrentUsername());
     }
 
     function getBoostLookupKeys(boost) {

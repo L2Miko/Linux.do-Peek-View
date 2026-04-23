@@ -106,9 +106,7 @@
 
       parsed.pathname = parsed.pathname.replace(/\/(?:\{size\}|%7Bsize%7D)\//i, `/${String(size || 96)}/`);
       parsed.pathname = parsed.pathname.replace(/\.png$/i, ".gif");
-      if (!/^cdn\./i.test(parsed.hostname)) {
-        parsed.hostname = `cdn.${parsed.hostname}`;
-      }
+      parsed.hostname = "cdn.ldstatic.com";
       return parsed.toString();
     } catch {
       return "";
