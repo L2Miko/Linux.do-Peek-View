@@ -4,8 +4,20 @@
     return;
   }
 
+  function collectReadTrackCards(scope, options = {}) {
+    const HTMLElementClass = options.HTMLElementClass || globalThis.HTMLElement;
+    if (!scope || typeof scope.querySelectorAll !== "function") {
+      return [];
+    }
+
+    return Array.from(scope.querySelectorAll(".ld-post-card[data-post-number]"))
+      .filter((card) => card instanceof HTMLElementClass);
+  }
+
   function syncReadTracking(state, posts, options = {}) {
     const scheduleReadVisibilityCheck = options.scheduleReadVisibilityCheck;
+    const collectReadTrackCards = options.collectReadTrackCards;
+    const cards = Array.isArray(options.cards) ? options.cards : null;
     const topicId = Number(state?.currentTopic?.id || state?.currentTopicIdHint);
     if (!Number.isFinite(topicId)) {
       return;
@@ -14,12 +26,28 @@
     if (state.readTopicId !== topicId) {
       state.readTopicId = topicId;
       state.readSeenPostNumbers.clear();
+      state.readPendingPostCards = [];
       state.lastReportedReadPostNumber = 0;
       state.lastReadReportKey = "";
     }
 
     if (!Array.isArray(posts) || posts.length === 0) {
       return;
+    }
+
+    const nextCards = cards || (
+      typeof collectReadTrackCards === "function"
+        ? collectReadTrackCards(state?.content)
+        : []
+    );
+    if (nextCards.length > 0) {
+      const seenCards = new Set(state.readPendingPostCards);
+      for (const card of nextCards) {
+        if (!seenCards.has(card)) {
+          state.readPendingPostCards.push(card);
+          seenCards.add(card);
+        }
+      }
     }
 
     if (typeof scheduleReadVisibilityCheck === "function") {
@@ -67,8 +95,17 @@
     const readLine = containerRect.top + topInset + 24;
     const minVisibleRatio = 0.2;
 
-    for (const card of state.content.querySelectorAll(".ld-post-card[data-post-number]")) {
+    const pendingCards = Array.isArray(state.readPendingPostCards) ? state.readPendingPostCards : [];
+    if (!pendingCards.length) {
+      return;
+    }
+
+    const nextPendingCards = [];
+    for (const card of pendingCards) {
       if (!(card instanceof HTMLElementClass)) {
+        continue;
+      }
+      if (!card.isConnected) {
         continue;
       }
 
@@ -91,8 +128,13 @@
       if (visibleRatio >= minVisibleRatio && hasCrossedReadLine) {
         state.readSeenPostNumbers.add(postNumber);
         changed = true;
+        continue;
       }
+
+      nextPendingCards.push(card);
     }
+
+    state.readPendingPostCards = nextPendingCards;
 
     if (changed && typeof scheduleReadProgressReportFromSeen === "function") {
       scheduleReadProgressReportFromSeen();
@@ -154,11 +196,13 @@
     }
     state.readTopicId = null;
     state.readSeenPostNumbers.clear();
+    state.readPendingPostCards = [];
     state.lastReportedReadPostNumber = 0;
     state.lastReadReportKey = "";
   }
 
   runtime.readTrackingUtils = {
+    collectReadTrackCards,
     syncReadTracking,
     scheduleReadVisibilityCheck,
     collectVisibleReadPosts,

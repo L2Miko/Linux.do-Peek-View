@@ -1074,6 +1074,170 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
   margin-top: 2px;
 }
 
+#ld-drawer-root .ld-topic-load-more-placeholders {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+#ld-drawer-root .ld-post-card.ld-post-card-skeleton {
+  pointer-events: none;
+  overflow: hidden;
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.1)) 40%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--secondary, #fff) 68%, transparent);
+}
+
+#ld-drawer-root .ld-post-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+
+#ld-drawer-root .ld-post-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.14)) 72%, var(--secondary, #fff));
+  animation: ld-post-skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+#ld-drawer-root .ld-post-skeleton-meta {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+#ld-drawer-root .ld-post-skeleton-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ld-drawer-root .ld-post-skeleton-block,
+#ld-drawer-root .ld-post-skeleton-badge,
+#ld-drawer-root .ld-post-skeleton-icon {
+  display: block;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.12)) 76%, var(--secondary, #fff));
+  animation: ld-post-skeleton-pulse 2.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+#ld-drawer-root .ld-post-skeleton-name {
+  width: min(24%, 104px);
+  height: 14px;
+  border-radius: 8px;
+  animation-duration: 1.8s;
+}
+
+#ld-drawer-root .ld-post-skeleton-badge {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 58%, var(--secondary, #fff));
+  animation-duration: 1.6s;
+}
+
+#ld-drawer-root .ld-post-skeleton-time {
+  width: min(16%, 72px);
+  height: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 62%, var(--secondary, #fff));
+  animation-duration: 2.2s;
+}
+
+#ld-drawer-root .ld-post-skeleton-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+#ld-drawer-root .ld-post-skeleton-title {
+  width: min(72%, 420px);
+  height: 22px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.16)) 80%, var(--secondary, #fff));
+  animation-duration: 1.5s;
+}
+
+#ld-drawer-root .ld-post-skeleton-text {
+  display: grid;
+  gap: 10px;
+}
+
+#ld-drawer-root .ld-post-skeleton-line {
+  width: 100%;
+  height: 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 68%, var(--secondary, #fff));
+  animation-duration: 2.5s;
+}
+
+#ld-drawer-root .ld-post-skeleton-line-wide {
+  width: 92%;
+  animation-duration: 2.3s;
+}
+
+#ld-drawer-root .ld-post-skeleton-line-short {
+  width: 66%;
+  animation-duration: 2.7s;
+}
+
+#ld-drawer-root .ld-post-skeleton-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 42%, transparent);
+}
+
+#ld-drawer-root .ld-post-skeleton-tools {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+#ld-drawer-root .ld-post-skeleton-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ld-drawer-root .ld-post-skeleton-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 58%, var(--secondary, #fff));
+  animation-duration: 1.9s;
+}
+
+#ld-drawer-root .ld-post-skeleton-count {
+  width: 30px;
+  height: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-low, rgba(15, 23, 42, 0.08)) 62%, var(--secondary, #fff));
+}
+
+#ld-drawer-root .ld-post-skeleton-icon-bookmark {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+}
+
+@keyframes ld-post-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 #ld-drawer-root .ld-post-card {
   position: relative;
   min-width: 0;
@@ -2136,38 +2300,8 @@ body.ld-drawer-page-open #ld-drawer-root .ld-drawer-shell {
 
 #ld-drawer-root .ld-loading-state {
   display: grid;
-  gap: 12px;
-}
-
-#ld-drawer-root .ld-loading-bar,
-#ld-drawer-root .ld-loading-card {
-  position: relative;
-  overflow: hidden;
-  background: rgba(148, 163, 184, 0.16);
-}
-
-#ld-drawer-root .ld-loading-bar::after,
-#ld-drawer-root .ld-loading-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
-  animation: ld-drawer-shimmer 1.2s infinite;
-}
-
-#ld-drawer-root .ld-loading-bar {
-  height: 16px;
-  border-radius: 999px;
-}
-
-#ld-drawer-root .ld-loading-bar-short {
-  width: 55%;
-}
-
-#ld-drawer-root .ld-loading-card {
-  height: 180px;
-  border-radius: 18px;
+  gap: 14px;
+  min-width: 0;
 }
 
 @keyframes ld-drawer-shimmer {

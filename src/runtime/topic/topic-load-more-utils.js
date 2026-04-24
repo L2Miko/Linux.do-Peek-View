@@ -57,7 +57,9 @@
     const syncAutoLoadProgressHint = options.syncAutoLoadProgressHint;
     const syncReadTracking = options.syncReadTracking;
     const queueAutoLoadCheck = options.queueAutoLoadCheck;
+    const updateLoadMoreStatus = options.updateLoadMoreStatus;
     const requestAnimationFrameFn = options.requestAnimationFrameFn || globalThis.requestAnimationFrame;
+    const renderChunkSize = Math.max(1, Number(options.renderChunkSize) || 6);
     if (
       !state
       || typeof buildPostCard !== "function"
@@ -67,6 +69,7 @@
       || typeof syncAutoLoadProgressHint !== "function"
       || typeof syncReadTracking !== "function"
       || typeof queueAutoLoadCheck !== "function"
+      || typeof updateLoadMoreStatus !== "function"
       || typeof requestAnimationFrameFn !== "function"
     ) {
       return false;
@@ -95,30 +98,36 @@
       .filter((post) => !existingPostNumbers.has(Number(post.post_number)));
 
     if (!pendingPosts.length) {
+      state.loadMorePlaceholderCount = 0;
       state.currentTopic = nextTopic;
       renderTopicMeta(nextTopic, (nextTopic.post_stream?.posts || []).length);
       updateReactionOptionsFromTopicPayload(nextTopic);
       syncReplyUI();
       syncAutoLoadProgressHint();
-      syncReadTracking(nextTopic.post_stream?.posts || []);
+      updateLoadMoreStatus();
+      syncReadTracking(nextTopic.post_stream?.posts || [], []);
       return true;
     }
 
-    const chunkSize = 6;
-    for (let index = 0; index < pendingPosts.length; index += chunkSize) {
+    const appendedCards = [];
+    for (let index = 0; index < pendingPosts.length; index += renderChunkSize) {
       if (signal?.aborted || state.currentUrl !== expectedUrl) {
         return false;
       }
 
       const fragment = globalThis.document.createDocumentFragment();
-      for (const post of pendingPosts.slice(index, index + chunkSize)) {
-        fragment.appendChild(buildPostCard(post));
+      for (const post of pendingPosts.slice(index, index + renderChunkSize)) {
+        const card = buildPostCard(post);
+        appendedCards.push(card);
+        fragment.appendChild(card);
       }
       if (footer instanceof HTMLElementClass && footer.parentElement === postList) {
         postList.insertBefore(fragment, footer);
       } else {
         postList.appendChild(fragment);
       }
+      state.loadMorePlaceholderCount = Math.max(0, state.loadMorePlaceholderCount - Math.min(renderChunkSize, pendingPosts.length - index));
+      updateLoadMoreStatus();
 
       // Yield one frame between chunks to avoid long main-thread stalls.
       await new Promise((resolve) => {
@@ -131,7 +140,7 @@
     renderTopicMeta(nextTopic, (nextTopic.post_stream?.posts || []).length);
     syncReplyUI();
     syncAutoLoadProgressHint();
-    syncReadTracking(nextTopic.post_stream?.posts || []);
+    syncReadTracking(nextTopic.post_stream?.posts || [], appendedCards);
     queueAutoLoadCheck();
     return true;
   }
@@ -147,6 +156,7 @@
     const getLoadedTopicPostIds = options.getLoadedTopicPostIds;
     const appendPostsToCurrentTopicView = options.appendPostsToCurrentTopicView;
     const renderTopic = options.renderTopic;
+    const earlyBatchSize = Math.max(1, Number(options.earlyBatchSize) || 6);
     if (
       !state
       || (
@@ -188,31 +198,72 @@
     state.loadMoreAbortController = controller;
 
     try {
-      const posts = await fetchTopicPostsBatch(currentUrl, nextPostIds, controller.signal, state.currentTopicIdHint);
-      if (controller.signal.aborted || state.currentUrl !== currentUrl || !posts.length) {
-        return;
+      const earlyPostIds = nextPostIds.slice(0, earlyBatchSize);
+      const deferredPostIds = nextPostIds.slice(earlyBatchSize);
+      state.loadMorePlaceholderCount = nextPostIds.length;
+      updateLoadMoreStatus();
+
+      const applyFetchedPosts = async (posts) => {
+        if (controller.signal.aborted || state.currentUrl !== currentUrl || !posts.length) {
+          return;
+        }
+
+        const mergedTopic = mergeTopicPreviewData(state.currentTopic, {
+          posts_count: state.currentTopic?.posts_count,
+          post_stream: {
+            posts
+          }
+        }, getTopicStreamIds, getLoadedTopicPostIds);
+
+        const appended = await appendPostsToCurrentTopicView(posts, currentUrl, controller.signal, mergedTopic);
+        if (controller.signal.aborted || state.currentUrl !== currentUrl) {
+          return;
+        }
+
+        if (!appended) {
+          renderTopic(mergedTopic, currentUrl, state.currentFallbackTitle, state.currentResolvedTargetPostNumber, {
+            targetSpec: state.currentTargetSpec,
+            preserveScrollTop: previousScrollTop
+          });
+        }
+      };
+
+      const createDeferredPostsPromise = (postIds) => fetchTopicPostsBatch(
+        currentUrl,
+        postIds,
+        controller.signal,
+        state.currentTopicIdHint
+      ).then(
+        (posts) => ({ posts, error: null }),
+        (error) => ({ posts: [], error })
+      );
+
+      let deferredPostsPromise = null;
+      if (earlyPostIds.length) {
+        const earlyPosts = await fetchTopicPostsBatch(currentUrl, earlyPostIds, controller.signal, state.currentTopicIdHint);
+        if (deferredPostIds.length && !controller.signal.aborted && state.currentUrl === currentUrl) {
+          deferredPostsPromise = createDeferredPostsPromise(deferredPostIds);
+        }
+        await applyFetchedPosts(earlyPosts);
+      } else if (deferredPostIds.length) {
+        deferredPostsPromise = createDeferredPostsPromise(deferredPostIds);
       }
 
-      const nextTopic = mergeTopicPreviewData(state.currentTopic, {
-        posts_count: state.currentTopic.posts_count,
-        post_stream: {
-          posts
+      if (deferredPostsPromise && !controller.signal.aborted && state.currentUrl === currentUrl) {
+        const deferredResult = await deferredPostsPromise;
+        if (deferredResult?.error) {
+          throw deferredResult.error;
         }
-      }, getTopicStreamIds, getLoadedTopicPostIds);
+        await applyFetchedPosts(deferredResult?.posts || []);
+      }
 
-      const appended = await appendPostsToCurrentTopicView(posts, currentUrl, controller.signal, nextTopic);
       if (controller.signal.aborted || state.currentUrl !== currentUrl) {
         return;
       }
 
       state.isLoadingMorePosts = false;
       state.loadMoreError = "";
-      if (!appended) {
-        renderTopic(nextTopic, currentUrl, state.currentFallbackTitle, state.currentResolvedTargetPostNumber, {
-          targetSpec: state.currentTargetSpec,
-          preserveScrollTop: previousScrollTop
-        });
-      }
+      state.loadMorePlaceholderCount = 0;
       updateLoadMoreStatus();
     } catch (error) {
       if (controller.signal.aborted) {
@@ -221,8 +272,14 @@
 
       state.isLoadingMorePosts = false;
       state.loadMoreError = error?.message || "加载更多失败";
+      state.loadMorePlaceholderCount = 0;
       updateLoadMoreStatus();
     } finally {
+      if (state.loadMoreAbortController === controller && controller.signal.aborted) {
+        state.isLoadingMorePosts = false;
+        state.loadMorePlaceholderCount = 0;
+        updateLoadMoreStatus();
+      }
       if (state.loadMoreAbortController === controller) {
         state.loadMoreAbortController = null;
       }

@@ -37,6 +37,8 @@
     state.isReplySubmitting = false;
     state.loadMoreError = "";
     state.loadMoreStatus = null;
+    state.loadMorePlaceholderContainer = null;
+    state.loadMorePlaceholderCount = 0;
     state.pendingReactionPostIds.clear();
     setDrawerTitle(fallbackTitle || "帖子预览");
     state.meta.textContent = "智能预览暂时不可用。";
@@ -109,6 +111,8 @@
     state.isReplySubmitting = false;
     state.loadMoreError = "";
     state.loadMoreStatus = null;
+    state.loadMorePlaceholderContainer = null;
+    state.loadMorePlaceholderCount = 0;
     state.pendingReactionPostIds.clear();
     setDrawerTitle(fallbackTitle || "帖子预览");
     state.meta.textContent = forcedIframe ? "当前为整页模式。" : "接口预览失败，已回退为完整页面。";

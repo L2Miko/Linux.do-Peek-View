@@ -32,17 +32,22 @@
     if (viewModel.canAutoLoadMore) {
       const footer = documentRef.createElement("div");
       footer.className = "ld-topic-footer";
+      const placeholders = documentRef.createElement("div");
+      placeholders.className = "ld-topic-load-more-placeholders";
+      placeholders.hidden = true;
       const status = documentRef.createElement("div");
       status.className = "ld-topic-note-loading";
       status.setAttribute("aria-live", "polite");
       status.setAttribute("aria-label", "继续下滑可自动加载后续回复");
-      footer.appendChild(status);
+      footer.append(placeholders, status);
       state.loadMoreStatus = status;
+      state.loadMorePlaceholderContainer = placeholders;
       postList.appendChild(footer);
       return wrapper;
     }
 
     state.loadMoreStatus = null;
+    state.loadMorePlaceholderContainer = null;
     return wrapper;
   }
 

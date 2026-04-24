@@ -55,6 +55,8 @@
     IFRAME_MODE_CLASS,
     SETTINGS_KEY,
     LOAD_MORE_TRIGGER_OFFSET,
+    LOAD_MORE_EARLY_BATCH_SIZE,
+    LOAD_MORE_RENDER_CHUNK_SIZE,
     IMAGE_PREVIEW_SCALE_MIN,
     IMAGE_PREVIEW_SCALE_MAX,
     IMAGE_PREVIEW_SCALE_STEP,
@@ -272,7 +274,9 @@
       syncAutoLoadProgressHint,
       syncReadTracking,
       queueAutoLoadCheck,
-      requestAnimationFrameFn: requestAnimationFrame
+      updateLoadMoreStatus,
+      requestAnimationFrameFn: requestAnimationFrame,
+      renderChunkSize: LOAD_MORE_RENDER_CHUNK_SIZE
     }
   );
   const loadMorePosts = () => runtime.topicLoadMoreUtils.loadMorePosts(state, {
@@ -285,7 +289,8 @@
     getTopicStreamIds: runtime.topicStream.getTopicStreamIds,
     getLoadedTopicPostIds: runtime.topicStream.getLoadedTopicPostIds,
     appendPostsToCurrentTopicView,
-    renderTopic
+    renderTopic,
+    earlyBatchSize: LOAD_MORE_EARLY_BATCH_SIZE
   });
   const buildTopicView = (topic, viewModel) => runtime.topicViewBuilderUtils.buildTopicView(state, topic, viewModel, {
     documentRef: document,
@@ -790,8 +795,13 @@
   const handleImagePreviewPointerEnd = (event) => getImagePreviewBridgeApi().handleImagePreviewPointerEnd(event);
   const endImagePreviewDrag = () => getImagePreviewBridgeApi().endImagePreviewDrag();
   const clampImagePreviewOffsets = () => getImagePreviewBridgeApi().clampImagePreviewOffsets();
-  const syncReadTracking = (posts) => runtime.readTrackingUtils.syncReadTracking(state, posts, {
-    scheduleReadVisibilityCheck
+  const collectReadTrackCards = (scope = state.content) => runtime.readTrackingUtils.collectReadTrackCards(scope, {
+    HTMLElementClass: HTMLElement
+  });
+  const syncReadTracking = (posts, cards = null) => runtime.readTrackingUtils.syncReadTracking(state, posts, {
+    scheduleReadVisibilityCheck,
+    collectReadTrackCards,
+    cards
   });
   const scheduleReadVisibilityCheck = () => runtime.readTrackingUtils.scheduleReadVisibilityCheck(state, {
     requestAnimationFrameFn: requestAnimationFrame,

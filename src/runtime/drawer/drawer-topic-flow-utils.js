@@ -128,6 +128,8 @@
       state.currentTopic = null;
       state.loadMoreError = "";
       state.isLoadingMorePosts = false;
+      state.loadMorePlaceholderCount = 0;
+      state.loadMorePlaceholderContainer = null;
       resetReadTrackingState();
       state.pendingReactionPostIds.clear();
       state.pendingBookmarkPostIds.clear();
@@ -184,6 +186,8 @@
       state.meta.textContent = "";
       state.loadMoreError = "";
       state.isLoadingMorePosts = false;
+      state.loadMorePlaceholderCount = 0;
+      state.loadMorePlaceholderContainer = null;
       state.pendingReactionPostIds.clear();
       state.pendingBookmarkPostIds.clear();
       resetReplyComposer();
